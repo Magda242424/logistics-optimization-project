@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environnement virtuel
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Données locales
+data/raw/
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers Excel temporaires
+~$*.xlsx
+~$*.xls
+
+
+~$*
