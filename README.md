@@ -17,6 +17,7 @@
    * [4.8 Recommendations](#48-recommendations)
    * [4.9 Optimization Scenario](#49-optimization-scenario)
    * [4.10 Shipment Tracking & Operational Visibility](#410-shipment-tracking--operational-visibility)
+   * [4.11 Time Series Forecasting — Daily Shipment Volume](#411-time-series-forecasting--daily-shipment-volume)
 5. [Key Results](#5-key-results)
 
    * [5.1 Global Logistics Performance](#51-global-logistics-performance)
@@ -28,6 +29,7 @@
    * [5.7 Top 10 Priority Customers for Logistics Optimization](#57-top-10-priority-customers-for-logistics-optimization)
    * [5.8 Optimization Scenario Results](#58-optimization-scenario-results)
    * [5.9 Shipment Tracking & Operational Visibility](#59-shipment-tracking--operational-visibility)
+   * [5.10 Time Series Forecasting Results](#510-time-series-forecasting-results)
 6. [Business Interpretation](#6-business-interpretation)
 7. [Power BI Dashboard](#7-power-bi-dashboard)
 8. [Project Structure](#8-project-structure)
@@ -357,6 +359,97 @@ The tracking dashboard is generated directly in Jupyter Notebook and provides a 
 This component demonstrates how the analytical project can be extended from historical logistics analysis toward an operational visibility use case based on continuously enriched tracking data.
 
 ---
+---
+
+## 4.11 Time Series Forecasting — Daily Shipment Volume
+
+A daily time-series forecasting analysis was added to estimate future shipment volume using the simulated 2025 shipment history.
+
+The analysis uses the same PostgreSQL database (`logistic_base`) as the rest of the project and focuses on `shipment_count` as the forecasting variable.
+
+The workflow includes:
+
+* verification of the database date range;
+* construction of a complete daily time series for 2025;
+* exploratory analysis of daily shipment volume;
+* weekday seasonality analysis;
+* time-series decomposition;
+* stationarity testing using the Augmented Dickey-Fuller (ADF) test;
+* autocorrelation analysis using ACF/PACF and Ljung-Box tests;
+* chronological train/test splitting;
+* comparison with Naive and Seasonal Naive baselines;
+* ARIMA and SARIMA candidate models;
+* residual diagnostics;
+* final model selection;
+* 28-day forecasting for January 2026.
+
+The original dataset covers the complete 2025 calendar year:
+
+* **365 calendar days**
+* **1,000 shipments**
+* **346 days with shipments**
+* **19 days without shipments**
+
+The daily series retains all calendar days, including zero-shipment days, so that the temporal structure and weekly seasonality are represented correctly.
+
+The analysis initially considered transport cost as a forecasting variable. However, the daily cost series was strongly influenced by irregular and extreme values and did not provide a sufficiently useful temporal signal. The analysis therefore focuses on **daily shipment volume**, which is more directly interpretable as an operational workload measure.
+
+The weekday analysis indicates statistically significant differences between at least some days of the week. The Kruskal-Wallis test produced:
+
+* **Statistic: 14.5608**
+* **p-value: 0.023962**
+
+This supports testing a weekly seasonal structure with a period of **7 days**.
+
+The decomposition confirms a weekly seasonal component, although the residual component remains larger than the seasonal component. The ACF analysis also shows very weak autocorrelation at the weekly lags:
+
+* **ACF(7): 0.0021**
+* **ACF(14): 0.0312**
+
+The Ljung-Box test on the original daily series did not identify significant overall autocorrelation at the tested lags.
+
+The Augmented Dickey-Fuller test produced a p-value below 0.05, indicating that the raw daily shipment-volume series is stationary. Consequently, no regular differencing was required and the tested ARIMA/SARIMA models use **d = 0**.
+
+The chronological evaluation uses:
+
+* **337 training observations**
+* **28 test observations**
+
+The baseline comparison showed that Seasonal Naive forecasting outperformed the simple Naive model:
+
+| Model | MAE | RMSE |
+| --- | ---: | ---: |
+| Seasonal Naive (7-day) | 2.4643 | 3.1225 |
+| Naive | 3.3214 | 3.6596 |
+
+Three non-seasonal ARIMA candidates and two seasonal SARIMA candidates were then evaluated. **ARIMA(0,0,1)** achieved the best test performance:
+
+| Model | MAE | RMSE |
+| --- | ---: | ---: |
+| **ARIMA(0,0,1)** | **1.4039** | **1.6917** |
+| ARIMA(1,0,0) | 1.4059 | 1.6930 |
+| ARIMA(1,0,1) | 1.4104 | 1.6953 |
+| SARIMA(1,0,0)x(1,0,0,7) | 1.9299 | 2.2891 |
+| SARIMA(0,0,1)x(0,0,1,7) | 2.4324 | 2.9793 |
+
+ARIMA(0,0,1) reduced the test-set error relative to the Seasonal Naive baseline by approximately:
+
+* **43.03% in MAE**
+* **45.82% in RMSE**
+
+The residual diagnostics support the model from an autocorrelation perspective. Ljung-Box p-values were above 0.05 at lags 7, 14, 21 and 28, indicating no significant remaining residual autocorrelation.
+
+The Shapiro-Wilk test, however, rejected residual normality (`p < 0.05`). Therefore, the model is retained for forecasting because of its predictive performance and residual autocorrelation diagnostics, while normality-based inference is interpreted with caution.
+
+The final model is re-estimated using all **365 observations from 2025** and produces a **28-day forecast for 2026-01-01 to 2026-01-28**.
+
+The resulting forecast is approximately:
+
+* **2.74 shipments per day**
+* **76.77 shipments over 28 days**
+
+The forecast should be interpreted primarily as an estimate of the future **average shipment-volume level**, rather than as a precise prediction of the exact number of shipments on every individual day.
+
 
 # 5. Key Results
 
@@ -581,6 +674,38 @@ The SQL implementation is available in:
 The current implementation uses the project's simulated historical shipment and tracking data. Its purpose is to demonstrate the architecture, logic and operational user experience required for a shipment tracking solution that could subsequently be connected to current real-world data sources.
 
 ---
+---
+
+## 5.10 Time Series Forecasting Results
+
+The time-series analysis provides a short-term forecast of daily shipment volume based on the 2025 shipment history.
+
+The selected model is **ARIMA(0,0,1)**, which achieved the lowest test-set error among the evaluated ARIMA, SARIMA and baseline models:
+
+* **MAE: 1.4039 shipments**
+* **RMSE: 1.6917 shipments**
+
+Compared with the Seasonal Naive baseline, the selected model reduced:
+
+* **MAE by 43.03%**
+* **RMSE by 45.82%**
+
+The residual diagnostics indicate no significant remaining autocorrelation, although the residuals do not follow a normal distribution.
+
+After retraining on the complete 2025 history, the model forecasts:
+
+* **2.74 shipments per day**
+* **approximately 76.77 shipments over the 28-day forecast horizon**
+* forecast period: **2026-01-01 to 2026-01-28**
+
+![Daily Shipment Volume Forecast — ARIMA(0,0,1)](exports/charts/Daily%20Shipment%20Volume%20Forecast%20-%20ARIMA%280%2C0%2C1%29.png)
+
+### Forecast Interpretation & Business Implications
+
+ARIMA(0,0,1) forecasts an average of **2.74 shipments per day**, corresponding to approximately **76.77 shipments over the 28-day horizon**. The **95% confidence interval** indicates substantial uncertainty, with an average daily range of approximately **0.00 to 5.98 shipments**.
+
+The forecast should therefore be interpreted as an estimate of the **overall future shipment-volume level** rather than a precise day-by-day prediction. From a business perspective, the result can support short-term capacity and workload planning, while the confidence interval highlights the need to retain operational flexibility around the expected average volume.
+
 
 # 6. Business Interpretation
 
@@ -588,7 +713,7 @@ Overall, the analysis demonstrates how several analytical techniques can be comb
 
 The analytical workflow can be summarized as:
 
-**Raw Data → SQL Analysis → Data Validation → KPI Analysis → Logistics Network Analysis → Customer Segmentation → PCA → Customer Prioritization → Recommendations → Optimization Scenario → Shipment Tracking & Operational Visibility**
+**Raw Data → SQL Analysis → Data Validation → KPI Analysis → Logistics Network Analysis → Customer Segmentation → PCA → Customer Prioritization → Recommendations → Optimization Scenario → Shipment Tracking & Operational Visibility → Time Series Forecasting**
 
 The main business opportunities identified in the simulated dataset are:
 
@@ -601,7 +726,8 @@ The main business opportunities identified in the simulated dataset are:
 7. reducing transport costs;
 8. reducing CO₂ emissions;
 9. improving shipment-level operational visibility;
-10. providing a foundation for future real-time logistics tracking.
+10. providing a foundation for future real-time logistics tracking;
+11. forecasting short-term shipment volume to support capacity and workload planning.
 
 The analysis demonstrates that optimization should not necessarily be applied uniformly across the entire customer base.
 
@@ -700,6 +826,8 @@ logistic_project/
 │   │   ├── 02_customer_segmentation_pca.png
 │   │   └── 03_top10_priority_customers.png
 │   │
+│   │   └── 04_Daily Shipment Volume Forecast - ARIMA(0,0,1).png
+│   │
 │   ├── powerbi/
 │   │   ├── 01_overview.PNG
 │   │   ├── 02_clients_recommendations.PNG
@@ -710,7 +838,8 @@ logistic_project/
 │
 ├── notebooks/
 │   ├── logistic_analysis.ipynb
-│   └── logistics_operational_analytics.ipynb
+│   ├── logistics_operational_analytics.ipynb
+│   └── Logistics Analytics — End-to-End Operational Analysis.ipynb
 │
 ├── sql/
 │   ├── 01_schema.sql
@@ -737,6 +866,7 @@ The project uses:
 * **Pandas** — data manipulation;
 * **NumPy** — numerical computation;
 * **Scikit-learn** — clustering, scaling and PCA;
+* **Statsmodels** — time-series analysis, ADF testing, ARIMA/SARIMA modeling and residual diagnostics;
 * **NetworkX** — logistics network analysis;
 * **Matplotlib** — data visualization;
 * **SQLAlchemy** — PostgreSQL connectivity from Python;
@@ -747,7 +877,7 @@ The project uses:
 
 # 10. Reproducibility
 
-The project contains two complementary Jupyter notebooks.
+The project contains three complementary Jupyter notebooks.
 
 ## 10.1 Main Analytical Notebook
 
@@ -789,6 +919,32 @@ The SQL scripts used by the tracking component are:
 
 * `sql/06_shipment_tracking.sql`;
 * `sql/07_shipment_tracking_detail.sql`.
+---
+
+## 10.3 Time Series Forecasting Notebook
+
+The time-series forecasting workflow is contained in:
+
+`notebooks/Logistics Analytics — End-to-End Operational Analysis.ipynb`
+
+This notebook contains:
+
+1. PostgreSQL connection verification;
+2. database date-range verification;
+3. daily shipment activity analysis;
+4. exploratory analysis of shipment volume;
+5. weekday seasonality analysis;
+6. time-series decomposition;
+7. stationarity and autocorrelation testing;
+8. train/test evaluation;
+9. Naive and Seasonal Naive baselines;
+10. ARIMA and SARIMA model comparison;
+11. residual diagnostics;
+12. final ARIMA(0,0,1) model selection;
+13. 28-day shipment-volume forecasting.
+
+The time-series workflow uses the same PostgreSQL database (`logistic_base`) as the other analytical components of the project.
+
 
 The complete analytical and operational workflows can be reproduced by executing the notebooks sequentially after configuring the PostgreSQL connection and required Python environment.
 
@@ -817,7 +973,10 @@ The following components have been completed:
 * four-stage shipment timeline;
 * shipment current-location logic;
 * planned-arrival visibility;
-* operational shipment tracking dashboard.
+* operational shipment tracking dashboard;
+* daily shipment-volume time-series forecasting;
+* ARIMA/SARIMA model evaluation and diagnostics;
+* final 28-day shipment-volume forecast.
 
 The project now contains both:
 
@@ -828,7 +987,8 @@ The project now contains both:
 * customer segmentation;
 * customer prioritization;
 * optimization scenarios;
-* Power BI reporting.
+* Power BI reporting;
+* shipment-volume forecasting.
 
 ### Operational Visibility
 
@@ -855,4 +1015,6 @@ The project is therefore presented as a completed end-to-end logistics analytics
 
 **The shipment tracking component is also demonstrated using simulated historical shipment and tracking data. It is designed to demonstrate the technical architecture, SQL logic and operational dashboard required for shipment visibility and is not connected to live operational data.**
 
-**The project is designed as a portfolio demonstration of an end-to-end logistics analytics workflow, including SQL analysis, data validation, KPI analysis, logistics network analysis, customer segmentation, PCA, customer prioritization, recommendations, scenario-based optimization, shipment tracking and operational visibility.**
+**The time-series forecasting results are also based on simulated shipment data and should be interpreted as analytical estimates rather than guarantees of future operational volume. The ARIMA model was evaluated on a single 28-day holdout period, so its reported performance should not be interpreted as a guaranteed future accuracy rate.**
+
+**The project is designed as a portfolio demonstration of an end-to-end logistics analytics workflow, including SQL analysis, data validation, KPI analysis, logistics network analysis, customer segmentation, PCA, customer prioritization, recommendations, scenario-based optimization, shipment tracking, operational visibility and time-series forecasting.**
