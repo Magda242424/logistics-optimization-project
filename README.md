@@ -664,7 +664,7 @@ The tracking solution also propagates the planned arrival information across the
 
 The resulting dashboard provides a simple operational interface for shipment visibility.
 
-![Shipment Tracking Dashboard](exports/tracking/01_shipment_tracking.png)
+![Shipment Tracking Dashboard](exports/tracking/01_shipment_tracking.PNG)
 
 The SQL implementation is available in:
 
@@ -698,7 +698,7 @@ After retraining on the complete 2025 history, the model forecasts:
 * **approximately 76.77 shipments over the 28-day forecast horizon**
 * forecast period: **2026-01-01 to 2026-01-28**
 
-![Daily Shipment Volume Forecast — ARIMA(0,0,1)](exports/charts/04_Daily Shipment Volume Forecast - ARIMA(0,0,1).png)
+![Daily Shipment Volume Forecast — ARIMA(0,0,1)](<exports/charts/04_Daily Shipment Volume Forecast - ARIMA(0,0,1).png>)
 
 ### Forecast Interpretation & Business Implications
 
