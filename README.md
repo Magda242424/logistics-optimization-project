@@ -75,7 +75,7 @@ The main objectives are to:
 * expose planned arrival information;
 * demonstrate how the solution could support a real-time logistics visibility platform.
 
-The operational visibility component is designed to reflect the type of capabilities expected from modern logistics platforms such as **CLASQUIN Live**, where real-time visibility, enriched data, operational reliability, and digital capabilities support global supply-chain management.
+The operational visibility component is designed to reflect the type of capabilities expected from modern logistics platforms, where real-time visibility, enriched data, operational reliability, and digital capabilities support global supply-chain management.
 
 ---
 
